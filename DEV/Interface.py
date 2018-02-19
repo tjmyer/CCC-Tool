@@ -35,9 +35,6 @@ Sline2="Model: {0:35s}      Serial Number: {1:>17s}"
 Sline3="CPU Type: {0:45s}          CPU Speed: {1:4.2f}"
 Sline4="Memory: {0:4.1f}	                     				      Type: {1:>4s}"
 
-
-	
-
 debugflag = "N"
 command = "R"
 
@@ -60,8 +57,6 @@ actionHelp = "Help"
 actionNew = "New command in progress"
 actionFile = "File for DMIDECODE input"
 actionLookup = "Lookup Processor"
-
-
 
 
 def DMIDECODE(value,cmdline):

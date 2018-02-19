@@ -24,7 +24,7 @@ def CHECKITX(index,cpuversion,logfile):
 
 def CHECKIT(cpuversion):
 	lookupcount = int(commands.getoutput("grep -c '"+ cpuversion +"' Plist.csv"))
-	LOGIT(lookupcount,cpuversion,"check.log")
+	LOGIT(lookupcount,cpuversion,"test-cpuversion-find.log")
 	if lookupcount == 1:
 		x,y,passmark,CPU,action =  commands.getoutput("grep -m 1 '"+ cpuversion +"' Plist.csv").strip().split(",")
 		return(lookupcount,passmark,CPU,action)
@@ -52,9 +52,15 @@ for i in range(0,len(filelist)):
 	# print "Test ",i,filelist[i]
 	DMICMD="/usr/sbin/dmidecode --from-dump " + filelist[i]
 	
-	modelname  = DMIDECODE("modelname"," -s system-product-name|grep -v 'Invalid entry length'").strip()
+	#modelname  = DMIDECODE("modelname"," -s system-product-name|grep -v 'Invalid entry length'").strip()
+	modelname = DMIDECODE("modelname"," -s system-product-name").strip()
+	LOGIT(i,modelname,"test-modelname.log")
+	
+	cpuspeed     = DMIDECODE("cpuspeed"," -s processor-frequency|grep MHz").replace("MHz","")
+	LOGIT(i,cpuspeed,"test-cpuspeed.log")
+		
 	cpuversion = DMIDECODE("cpuversion"," -t processor|grep 'Version:'").replace("Version:","").replace(":","").replace("CPU ","").strip()
-	LOGIT(i,cpuversion,"lookup-0.log")
+	LOGIT(i,cpuversion,"test-cpuversion.log")
 	
 	if cpuversion == "Not Specified":
 		cpuversion = MODELLOOKUP(modelname)
@@ -70,7 +76,7 @@ for i in range(0,len(filelist)):
 			if lookupcount <> 1:
 				if lookupcount == 0:
 					print i," ",filelist[i]
-					LOGIT(i,cpuversionP3,"lookup-NONE.log")
+					LOGIT(i,cpuversionP3,"test-cpuversion-NONE.log")
 				else:
-					LOGIT(i,cpuversionP3,"lookup-REFINE.log")
+					LOGIT(i,cpuversionP3,"test-cpuversion-REFINE.log")
 			
