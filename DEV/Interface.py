@@ -1,11 +1,12 @@
 
-version = "B1.01.2"
+version = "B1.02.0"
 # B1.00.0 - working interface and basic R command without any check or logging
 # B1.00.1 - added Lookup command and check for no record found on R cmd lookoup
 # B1.00.2 - added logging  - next up return code
 # B1.01.0 - reordered code
 # B1.01.1 - added cpumodel refinement and Mlist.csv lookup (still need to add grep of CPU speed for mutiple entries
 # B1.01.2 - added logic to sort on cpucore count and memory type
+# B1.02.0 - bug fixes to core count, and PC lookup.  PC Lookup required redesign of logic - simpler now.
 
 import commands
 import sys
