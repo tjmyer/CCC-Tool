@@ -3,3 +3,6 @@ DEV/check.log
 DEV/lookup-NONE.log
 DEV/lookup-REFINE.log
 DEV/Interface.v1.1.02.py
+DEV/test-modelname.log
+DEV/test-cpuversion-NONE.log
+*.log
