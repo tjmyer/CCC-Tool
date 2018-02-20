@@ -224,10 +224,8 @@ def RecycleAction():
 		print " "
 		print "WARNING: CPU TYPE NOT FOUND"
 		print "   CPU version: ",cpuversion
-		print "   CPU lookup : ",cpulookup
+		print "   CPU versionP3: ",cpuversionP3
 		print ""
-		CPU=cpulookup
-		passmark = ""	
 	else:
 		if action == "Recycle":
 			print RlineRecycle.format()
