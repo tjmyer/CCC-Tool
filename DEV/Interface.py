@@ -1,11 +1,12 @@
 
-version = "B1.01.2"
+version = "B1.02.0"
 # B1.00.0 - working interface and basic R command without any check or logging
 # B1.00.1 - added Lookup command and check for no record found on R cmd lookoup
 # B1.00.2 - added logging  - next up return code
 # B1.01.0 - reordered code
 # B1.01.1 - added cpumodel refinement and Mlist.csv lookup (still need to add grep of CPU speed for mutiple entries
 # B1.01.2 - added logic to sort on cpucore count and memory type
+# B1.02.0 - bug fixes to core count, and PC lookup.  PC Lookup required redesign of logic - simpler now.
 
 import commands
 import sys
@@ -35,9 +36,6 @@ Sline2="Model: {0:35s}      Serial Number: {1:>17s}"
 Sline3="CPU Type: {0:45s}          CPU Speed: {1:4.2f}"
 Sline4="Memory: {0:4.1f}	                     				      Type: {1:>4s}"
 
-
-	
-
 debugflag = "N"
 command = "R"
 
@@ -62,8 +60,6 @@ actionFile = "File for DMIDECODE input"
 actionLookup = "Lookup Processor"
 
 
-
-
 def DMIDECODE(value,cmdline):
 	result = commands.getoutput(DMICMD + cmdline)
 	DebugPrint(value,result)
@@ -73,7 +69,24 @@ def DebugPrint(vname,value):
 	if debugflag == "Y":
 		print vname,"=", value
 	return
+	
+def CHECKIT(cpuversion):
+	lookupcount = int(commands.getoutput("grep -c '"+ cpuversion +"' Plist.csv"))
+	if lookupcount == 1:
+		x,y,passmark,CPU,action =  commands.getoutput("grep -m 1 '"+ cpuversion +"' Plist.csv").strip().split(",")
+		return(lookupcount,passmark,CPU,action)
+	else:
+		return(lookupcount,"0","Not Found","Unknown")	
 
+def MODELLOOKUP(modelname,cpuspeed):
+	modelcount = int(commands.getoutput("grep '"+ modelname +"' Mlist.csv|grep -cF '" + cpuspeed + "'"))
+	if modelcount <> 0:
+		x, y, cpulookup = commands.getoutput("grep '"+ modelname +"' Mlist.csv|grep -Fm 1 '" + cpuspeed + "'" ).split(",")
+	else:
+# SHOULD DO BETTER PROCESSING HERE - BUT FOR NOW RETURN MODEL NAME SO IT SHOWS UP AS CPU NOT FOUND	
+		cpulookup = modelname
+	return (cpulookup)
+		
 def SystemInfo():
     DebugPrint ("System Info",1)
     
@@ -128,117 +141,96 @@ def NewAction():
 	return
 	
 def RecycleAction():
-    DebugPrint("Recycle Action initiated",1)
-    snnumber   = DMIDECODE("snnumber"," -s system-serial-number|grep -v 'Invalid entry length'")
-    DMIDUMP=DMIDECODE("DMIDUMP"," --dump-bin "+ snnumber)
-    modelname  = DMIDECODE("modelname"," -s system-product-name|grep -v 'Invalid entry length'").strip()
-    cpuversion   = DMIDECODE("cpuversion"," -t processor|grep 'Version:'").replace("Version:","").replace(":","").replace("CPU ","").strip()
-    cpuspeed     = DMIDECODE("cpuspeed"," -s processor-frequency|grep MHz").replace("MHz","")
-    SPEED = round(float(cpuspeed)/1000,2)
-    try:
+	DebugPrint("Recycle Action initiated",1)
+	snnumber   = DMIDECODE("snnumber"," -s system-serial-number|grep -v 'Invalid entry length'")
+	DMIDUMP=DMIDECODE("DMIDUMP"," --dump-bin "+ snnumber)
+
+# Gather information about PC	
+	modelname  = DMIDECODE("modelname"," -s system-product-name|grep -v 'Invalid entry length'").strip()
+	cpuversion   = DMIDECODE("cpuversion"," -t processor|grep 'Version:'").replace("Version:","").replace(":","").replace("CPU ","").strip()
+	cpuspeed     = DMIDECODE("cpuspeed"," -s processor-frequency|grep MHz").replace("MHz","")
+	SPEED = round(float(cpuspeed)/1000,2)
+	try:
 		corecount     = int(DMIDECODE("cpucount"," -t 4 |grep -i 'Core Count:'").replace("Core Count:","").strip())
-    except ValueError:
+	except ValueError:
 		corecount = 1
-    ddrtype        = DMIDECODE("ddrtype"," -t 17 |grep -m 1 'Type: D'").replace("Type: ","").strip()
-    memsize = commands.getoutput("grep 'MemTotal' /proc/meminfo").replace("MemTotal:","").replace("kB","").strip()
-    MEMORY = round(float(memsize)/1000000,1)
+	ddrtype        = DMIDECODE("ddrtype"," -t 17 |grep -m 1 'Type: D'").replace("Type: ","").strip()
+	memsize = commands.getoutput("grep 'MemTotal' /proc/meminfo").replace("MemTotal:","").replace("kB","").strip()
+	MEMORY = round(float(memsize)/1000000,1)
 
-    dimlist=[""]
-    sizelist=[""]
-    dimdata = DMIDECODE("input"," -t 17").split("\n")
-    for line in dimdata:
-        x=line.find("Locator:")
-        y=line.find("Size:")
-        if y == 1:
-            sizelist.append(line.replace("Size:","").strip())
-        if x == 1:
-            dimlist.append(line.replace("Locator:","").strip()+":")
+	dimlist=[""]
+	sizelist=[""]
+	dimdata = DMIDECODE("input"," -t 17").split("\n")
+	for line in dimdata:
+		x=line.find("Locator:")
+		y=line.find("Size:")
+		if y == 1:
+			sizelist.append(line.replace("Size:","").strip())
+		if x == 1:
+			dimlist.append(line.replace("Locator:","").strip()+":")
 
+# Print header information and information gathered about PC
 	#print("\033[H\033[J")
-    print Sline1.format(version,"04/15/17")
-    print ""
-    print Sline2.format(modelname,snnumber)
-    print Sline3.format(cpuversion,SPEED)
-    print Sline4.format(MEMORY,ddrtype)
-    for i in range(len(dimlist)):
+	print Sline1.format(version,"04/15/17")
+	print ""
+	print Sline2.format(modelname,snnumber)
+	print Sline3.format(cpuversion,SPEED)
+	print Sline4.format(MEMORY,ddrtype)
+	for i in range(len(dimlist)):
 		if sizelist[i].find("MB") != -1:
 			size = str(round(float(sizelist[i].replace("MB","").strip())/1000,1))+" GB"
 		else:
 			size = sizelist[i]
 		print dimlist[i],size
+	tsinfo = datetime.now()
+	DebugPrint("tsinfo",tsinfo)	
 
-    tsinfo = datetime.now()
-    DebugPrint("tsinfo",tsinfo)	
+# Check if cpuversion is not specified - if not look up in Mlist table to get replacement values	
+	if cpuversion == "Not Specified":
+		cpuversion = MODELLOOKUP(modelname,str(SPEED))
+		print " "
+		print "Using CPU Type: ", cpuversion
+	
+# Parse out CPU name and lookup values in Plist table
+	cpuversionP1 = re.sub(' +'," ",cpuversion.replace("(R)","").replace("(TM)","").replace("(tm)","").replace("Processor","").replace("Intel","").replace("AMD",""))
+	lookupcount,passmark,CPU,action = CHECKIT(cpuversionP1)
+	if lookupcount <> 1:
+		cpuversionP2 = cpuversionP1.replace("APU with Radeon HD Graphics", "").strip()
+		lookupcount,passmark,CPU,action = CHECKIT(cpuversionP2)
+		if lookupcount <> 1:
+			cpuversionP3 = cpuversionP2.replace("i5 ","i5-").replace("i3 ","i3-").replace("i7 ","i7-").replace("Pentium Dual-Core","").replace("Pentium Dual","").strip()
+			lookupcount,passmark,CPU,action = CHECKIT(cpuversionP3)
+			if lookupcount <> 1:
+				if lookupcount == 0:
+					print "PC not found in lookup table"
+				else:
+					print "Multiple PCs found in lookup table - No single match"
+          
+	DebugPrint("passmark",passmark)
+	DebugPrint("CPU",CPU)
+	DebugPrint("action",action)
 
-# Parse cpuversion
-# Remove (R), (TM), (tm), Processor, Intel, AMD and duplicate spaces
-    cpulookup = re.sub(' +'," ",cpuversion.replace("(R)","").replace("(TM)","").replace("(tm)","").replace("Processor","").replace("Intel","").replace("AMD",""))
-    cpulookupX = cpuversion.replace("(R)","").replace("(TM)","").replace("(tm)","").replace("Processor","").replace("Intel","").replace("AMD","")
-    lookupcount = int(commands.getoutput("grep -c '"+ cpulookup +"' Plist.csv"))
-    DebugPrint("cpulookup",cpulookup)
-    DebugPrint("cpulookupX",cpulookupX)
-    if lookupcount == 0:
-        cpulookupA = cpulookup.replace("Pentium","").replace("Dual ", "").replace("Dual-Core", "").strip()
-        lookupcount = int(commands.getoutput("grep -c '"+ cpulookupA +"' Plist.csv"))
-        DebugPrint("cpulookupA", cpulookupA)
-        if lookupcount <> 0:
-            cpulookup = cpulookupA
-        else:
-            cpulookupB = cpulookupA.replace("APU with Radeon HD Graphics", "").strip()
-            lookupcount = int(commands.getoutput("grep -c '"+ cpulookupB+"' Plist.csv"))
-            DebugPrint("cpulookupB", cpulookupB)
-            if lookupcount <> 0:
-                cpulookup = cpulookupB
-            else:
-                if cpulookup == "Not Specified":
-                    modelcount = int(commands.getoutput("grep -c '"+ modelname +"' Mlist.csv"))
-                    print "modelcount",modelcount
-                    if modelcount <> 0:
-                       x, y, cpulookup = commands.getoutput("grep -m 1 '"+ modelname +"' Mlist.csv").split(",")
-                       lookupcount = modelcount
-                       
-    if lookupcount == 0:
-        lookupaction = "UNKNOWN"
-        CPU="UNKNOWN"
-        passmark = ""
-    else:
-        x,y,passmark,CPU,lookupaction =  commands.getoutput("grep -m 1 '"+ cpulookup +"' Plist.csv").strip().split(",")
-        DebugPrint("passmark",passmark)
-        DebugPrint("CPU",CPU)
-        DebugPrint("lookupaction",lookupaction)
-
-# Determine if 4 core vs 2 core, if DDR2 vs DDR3  
-    if corecount >= 3:
-        action = lookupaction       # Keep CPU if it's fast enought no matter what the memory type
-    elif corecount == 2:
-        if ddrtype == "DDR2":       # Only 2 core - and DDR2 don't want it
-            action = "Recycle"
-        else:
-            action = lookupaction     # Only 2 core - keep fast ones
-    else:
-        if ddrtype == "DDR2":        # core count no known, but DDR2 so don't keep
-            action = "Recycle"
-        else:
-            action = lookupaction
-
-    print ""
-    print "PassMark:", passmark
-    print "CPU Cores: ", corecount
-    print ""
+	if action <> "Recycle":
+		if ddrtype == "DDR2":
+			if corecount <> 4:
+				action = "Recycle"
+		
+	print ""
+	print "PassMark:", passmark
+	print "CPU Cores: ", corecount
+	print ""
     
-    DebugPrint("action", action)
-    if action == "UNKNOWN":
+	DebugPrint("action", action)
+	if action == "Unknown":
 		print " "
 		print "WARNING: CPU TYPE NOT FOUND"
 		print "   CPU version: ",cpuversion
-		print "   CPU lookup : ",cpulookup
+		print "   CPU versionP3: ",cpuversionP3
 		print ""
-		CPU=cpulookup
-		passmark = ""	
-    else:
-    	if action == "Recycle":
+	else:
+		if action == "Recycle":
 			print RlineRecycle.format()
-        else:
+		else:
 			print RlineRefurbish.format()
 			print ""
 			print RlineT.format()
@@ -250,11 +242,11 @@ def RecycleAction():
 			print RlineB.format()
 			print ""
 			print ""
-    with open("lookup.log","a") as logfile:
+	with open("lookup.log","a") as logfile:
 		logfile.write(Lline.format(str(tsinfo),action,CPU,SPEED,passmark,ddrtype,MEMORY,modelname,snnumber))
-    logfile.closed
-    DebugPrint("Log Line",Lline.format(str(tsinfo),action   ,CPU,SPEED,passmark,ddrtype,MEMORY,modelname,snnumber))		
-    return
+	logfile.closed
+	DebugPrint("Log Line",Lline.format(str(tsinfo),action   ,CPU,SPEED,passmark,ddrtype,MEMORY,modelname,snnumber))		
+	return
 	
 # Main()
 
