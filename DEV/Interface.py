@@ -78,12 +78,10 @@ def CHECKIT(cpuversion):
 	else:
 		return(lookupcount,"0","Not Found","Unknown")	
 
-def MODELLOOKUP(modelname):
-	modelcount = int(commands.getoutput("grep -c '"+ modelname +"' Mlist.csv"))
-	print "modelcount",modelcount
+def MODELLOOKUP(modelname,cpuspeed):
+	modelcount = int(commands.getoutput("grep '"+ modelname +"' Mlist.csv|grep -cF '" + cpuspeed + "'"))
 	if modelcount <> 0:
-		x, y, cpulookup = commands.getoutput("grep -m 1 '"+ modelname +"' Mlist.csv").split(",")
-		lookupcount = modelcount
+		x, y, cpulookup = commands.getoutput("grep '"+ modelname +"' Mlist.csv|grep -Fm 1 '" + cpuspeed + "'" ).split(",")
 	else:
 # SHOULD DO BETTER PROCESSING HERE - BUT FOR NOW RETURN MODEL NAME SO IT SHOWS UP AS CPU NOT FOUND	
 		cpulookup = modelname
@@ -189,7 +187,9 @@ def RecycleAction():
 
 # Check if cpuversion is not specified - if not look up in Mlist table to get replacement values	
 	if cpuversion == "Not Specified":
-		cpuversion = MODELLOOKUP(modelname)
+		cpuversion = MODELLOOKUP(modelname,str(SPEED))
+		print " "
+		print "Using CPU Type: ", cpuversion
 	
 # Parse out CPU name and lookup values in Plist table
 	cpuversionP1 = re.sub(' +'," ",cpuversion.replace("(R)","").replace("(TM)","").replace("(tm)","").replace("Processor","").replace("Intel","").replace("AMD",""))
