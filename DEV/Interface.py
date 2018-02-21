@@ -170,7 +170,7 @@ def RecycleAction():
 			dimlist.append(line.replace("Locator:","").strip()+":")
 
 # Print header information and information gathered about PC
-	#print("\033[H\033[J")
+	print("\033[H\033[J")
 	print Sline1.format(version,"04/15/17")
 	print ""
 	print Sline2.format(modelname,snnumber)
